@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer, VideoFrame
+from streamlit_webrtc import webrtc_streamer
+from av import VideoFrame
 import numpy as np
 
 # Import our AI modules
@@ -79,4 +80,5 @@ with col2:
     
     # Display latest analysis
     st.subheader("Latest Fused Analysis:")
+
     st.json(st.session_state.latest_analysis)
