@@ -13,28 +13,26 @@ class TextAnalyzer:
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
         print("✅ Text Analyzer loaded.")
-
     def predict(self, text):
-        inputs = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        with torch.no_grad():
-            logits = self.model(**inputs).logits
+    # Tokenize input
+    inputs = self.tokenizer(
+        text,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=512
+    )
 
-        sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(logits.squeeze())
+    # Forward pass (no gradients)
+    with torch.no_grad():
+        logits = self.model(**inputs).logits
 
-        # --- Dynamic thresholding ---
-        max_prob = torch.max(probs).item()
-        threshold = max(0.5, max_prob * 0.7)  # baseline 0.5, but relative to strongest signal
+    # Use softmax for single-label classification
+    probs = torch.nn.functional.softmax(logits, dim=-1).squeeze()
 
-        results = {}
-        for i, prob in enumerate(probs):
-            if prob.item() >= threshold:
-                label = self.model.config.id2label[i]
-                results[label] = round(prob.item(), 2)
+    # Pick the top class
+    top_idx = torch.argmax(probs).item()
+    label = self.model.config.id2label[top_idx]
+    confidence = round(probs[top_idx].item(), 2)
 
-        # If no label passes threshold, return the strongest one
-        if not results:
-            top_idx = torch.argmax(probs).item()
-            results[self.model.config.id2label[top_idx]] = round(probs[top_idx].item(), 2)
-
-        return results
+    return {label: confidence}
