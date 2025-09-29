@@ -1,0 +1,9 @@
+streamlit
+transformers
+torch
+datasets
+accelerate
+evaluate
+pandas
+scikit-learn
+bitsandbytes
