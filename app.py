@@ -35,4 +35,55 @@ with col1:
 
     # Display chat history
     for message in st.session_state.history:
-        if message
+        if message['role'] != 'system':
+            with st.chat_message(message['role']):
+                st.markdown(message['content'])
+
+    # Chat input
+    if user_prompt := st.chat_input("How are you feeling?"):
+        # --- DEBUGGING ---
+        st.info("--- DEBUG INFO ---")
+        st.write(f"**1. User Prompt Received:** `{user_prompt}`")
+
+        # 1. Get Vision Analysis
+        facial_analysis = st.session_state.get('latest_facial_analysis', {"dominant_emotion": "unknown"})
+
+        # 2. Get Text Analysis
+        text_analysis = text_analyzer.predict(user_prompt)
+
+        # --- MORE DEBUGGING ---
+        st.write("**2. Text Analyzer Output (processed):**", text_analysis)
+
+        # 3. Fusion (keep both separate for clarity)
+        fused_analysis = {
+            "text_analysis": text_analysis,
+            "vision_analysis": facial_analysis
+        }
+        st.session_state.latest_analysis = fused_analysis
+
+        # 4. Generate Conversational Reply
+        st.session_state.history.append({"role": "user", "content": user_prompt})
+        with st.spinner("Thinking..."):
+            ai_response = conversational_model.generate_response(st.session_state.history)
+        st.session_state.history.append({"role": "assistant", "content": ai_response})
+
+        # Rerun to display the new messages
+        st.rerun()
+
+with col2:
+    st.header("Real-Time Analysis")
+
+    # Webcam Feed
+    webrtc_ctx = webrtc_streamer(key="webcam")
+    if webrtc_ctx.video_receiver:
+        try:
+            video_frame = webrtc_ctx.video_receiver.get_frame(timeout=10)
+            image = video_frame.to_ndarray(format="bgr24")
+            facial_analysis = analyze_facial_expression(image)
+            st.session_state.latest_facial_analysis = facial_analysis
+        except Exception:
+            st.warning("Webcam feed stopped.")
+
+    # Display latest analysis
+    st.subheader("Latest Fused Analysis:")
+    st.json(st.session_state.latest_analysis)
