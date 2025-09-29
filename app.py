@@ -13,7 +13,6 @@ from conversational_model import ConversationalModel
 st.set_page_config(layout="wide", page_title="Multimodal AI Assessment")
 
 # --- Model Loading ---
-# Use caching to load models only once
 @st.cache_resource
 def load_models():
     text_model = TextAnalyzer()
@@ -33,72 +32,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.header("Conversation")
-    
+
     # Display chat history
     for message in st.session_state.history:
-        if message['role'] != 'system':
-            with st.chat_message(message['role']):
-                st.markdown(message['content'])
-
-    # Chat input
-    if user_prompt := st.chat_input("How are you feeling?"):
-        # 1. Get Vision Analysis
-        facial_analysis = st.session_state.get('latest_facial_analysis', {"dominant_emotion": "unknown"})
-        
-        # 2. Get Text Analysis
-        # NEW, CONTEXT-AWARE CODE
-
-        # 1. Get the conversation history as a formatted string.
-        history_as_text = "\n".join(
-            [f"{m['role'].title()}: {m['content']}" for m in st.session_state.history if m['role'] != 'system']
-        )
-        
-        # 2. Create the structured prompt for the analyzer.
-        # This tells the model what the context is and what to analyze.
-        structured_input = f"""
-        [CONTEXT]
-        {history_as_text}
-        User: {user_prompt}
-        [/CONTEXT]
-        
-        [INSTRUCTION]
-        Analyze the final user message within the context provided above.
-        """
-        
-        # 3. Call the analyzer with the new, context-rich input.
-        text_analysis = text_analyzer.predict(structured_input)
-        
-        # 3. FUSION (Mock for now)
-        # In a real system, you'd train a model to combine these.
-        # For now, we'll just merge them for display.
-        fused_analysis = {**text_analysis, **facial_analysis}
-        st.session_state.latest_analysis = fused_analysis
-        
-        # 4. Generate Conversational Reply
-        st.session_state.history.append({"role": "user", "content": user_prompt})
-        with st.spinner("Thinking..."):
-            ai_response = conversational_model.generate_response(st.session_state.history)
-        st.session_state.history.append({"role": "assistant", "content": ai_response})
-        
-        # Rerun to display the new messages
-        st.rerun()
-
-with col2:
-    st.header("Real-Time Analysis")
-    
-    # Webcam Feed
-    webrtc_ctx = webrtc_streamer(key="webcam")
-    if webrtc_ctx.video_receiver:
-        try:
-            video_frame = webrtc_ctx.video_receiver.get_frame(timeout=10)
-            image = video_frame.to_ndarray(format="bgr24")
-            facial_analysis = analyze_facial_expression(image)
-            st.session_state.latest_facial_analysis = facial_analysis
-        except Exception:
-            st.warning("Webcam feed stopped.")
-    
-    # Display latest analysis
-    st.subheader("Latest Fused Analysis:")
-
-    st.json(st.session_state.latest_analysis)
-
+        if message
