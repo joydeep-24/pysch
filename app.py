@@ -46,8 +46,27 @@ with col1:
         facial_analysis = st.session_state.get('latest_facial_analysis', {"dominant_emotion": "unknown"})
         
         # 2. Get Text Analysis
-        full_transcript = " ".join([m['content'] for m in st.session_state.history if m['role'] == 'user'])
-        text_analysis = text_analyzer.predict(full_transcript + " " + user_prompt)
+        # NEW, CONTEXT-AWARE CODE
+
+        # 1. Get the conversation history as a formatted string.
+        history_as_text = "\n".join(
+            [f"{m['role'].title()}: {m['content']}" for m in st.session_state.history if m['role'] != 'system']
+        )
+        
+        # 2. Create the structured prompt for the analyzer.
+        # This tells the model what the context is and what to analyze.
+        structured_input = f"""
+        [CONTEXT]
+        {history_as_text}
+        User: {user_prompt}
+        [/CONTEXT]
+        
+        [INSTRUCTION]
+        Analyze the final user message within the context provided above.
+        """
+        
+        # 3. Call the analyzer with the new, context-rich input.
+        text_analysis = text_analyzer.predict(structured_input)
         
         # 3. FUSION (Mock for now)
         # In a real system, you'd train a model to combine these.
@@ -82,3 +101,4 @@ with col2:
     st.subheader("Latest Fused Analysis:")
 
     st.json(st.session_state.latest_analysis)
+
