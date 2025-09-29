@@ -1,15 +1,26 @@
 # text_analyzer.py
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import os
 
 class TextAnalyzer:
-    def __init__(self, model_path="./fine-tuned-analyzer"):
+    # --- THIS IS THE LINE TO UPDATE ---
+    def __init__(self, model_path="/content/drive/MyDrive/fine-tuned-analyzer"):
         """
-        Loads the fine-tuned Longformer model and tokenizer.
+        Loads the fine-tuned Longformer model and tokenizer from Google Drive.
         """
         print(f"🔹 Loading Text Analyzer model from {model_path}...")
+        
+        # Check if the directory exists
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Model directory not found at {model_path}. "
+                f"Please ensure your Google Drive is mounted and the folder is in the correct location."
+            )
+            
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        
         print("✅ Text Analyzer loaded.")
 
     def predict(self, text):
