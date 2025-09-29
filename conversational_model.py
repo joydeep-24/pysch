@@ -1,26 +1,28 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
+# In conversational_model.py
+
+# In conversational_model.py
+
 class ConversationalModel:
-    """
-    A wrapper for the Llama 3 8B Instruct model to handle conversation generation.
-    """
     def __init__(self):
         """
-        Initializes the model and tokenizer. This is a heavy operation and
-        should only be done once.
+        Initializes the model and tokenizer from a local path in Google Drive.
         """
-        self.model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
-        print(f"🔹 Loading model: {self.model_name}...")
+        # --- THIS IS THE UPDATED LINE ---
+        self.model_name = "/content/drive/MyDrive/models/llama-3-8b-instruct"
+        
+        print(f"🔹 Loading model from Google Drive: {self.model_name}...")
 
-        # Load the tokenizer
+        # Load the tokenizer from the local path
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
-        # Load the model with 4-bit quantization to save memory
+        # Load the model with 4-bit quantization from the local path
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.bfloat16,
-            device_map="auto", # Automatically use GPU if available
+            device_map="auto",
             load_in_4bit=True,
         )
 
@@ -31,7 +33,7 @@ class ConversationalModel:
             tokenizer=self.tokenizer,
         )
         print("✅ Model loaded successfully.")
-
+        
     def generate_response(self, chat_history):
         """
         Generates a response based on the conversation history.
@@ -92,4 +94,5 @@ if __name__ == '__main__':
     print("\n--- Test Conversation ---")
     print(f"User: {sample_history[-1]['content']}")
     print(f"Assistant: {response}")
+
     print("------------------------")
