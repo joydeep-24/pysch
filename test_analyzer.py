@@ -1,21 +1,23 @@
+# test_analyzer.py
 from text_analyzer import TextAnalyzer
 
-print("--- Initializing Text Analyzer ---")
-text_analyzer = TextAnalyzer(device="cpu")
+def main():
+    model = TextAnalyzer(model_path="./fine-tuned-analyzer-7labels")
 
-texts = [
-    "I am so happy and excited, this is the best day ever!",
-    "This is a terrible and frustrating situation, I feel very angry.",
-    "I'm not sure how I feel about that.",
-    "I feel a bit of sadness and grief after hearing the news.",
-    "I should have done better, I always mess things up."
-]
+    test_sentences = [
+        "I am very happy today!",
+        "I feel so sad and hopeless.",
+        "I am terrified of tomorrow.",
+        "I really love spending time with my family.",
+        "That surprise party was amazing!",
+        "I am angry about what happened.",
+        "I'm just feeling okay, nothing special."
+    ]
 
-print("\n--- Running Predictions ---")
-for t in texts:
-    result = text_analyzer.predict(t)
-    print(f"Input: '{t}'")
-    print("All probs:", result["all_probs"])
-    print("Final:", result["final"], "\n")
+    for sent in test_sentences:
+        preds = model.predict(sent)
+        print(f"\nInput: {sent}")
+        print("Predictions:", preds)
 
-print("--- Test Complete ---")
+if __name__ == "__main__":
+    main()
