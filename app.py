@@ -1,10 +1,10 @@
-# app.py
+# /content/pysch/app.py
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer
 from av import VideoFrame
 import numpy as np
 
-# Import modules
+# Import from local pysch folder
 from text_analyzer import TextAnalyzer
 from vision_analyzer import analyze_facial_expression
 from conversational_model import ConversationalModel
@@ -34,12 +34,17 @@ with col1:
                 st.markdown(message["content"])
 
     if user_prompt := st.chat_input("How are you feeling?"):
+        # --- Text Analysis ---
         text_analysis = text_analyzer.predict(user_prompt)
+
+        # --- Vision Analysis ---
         facial_analysis = st.session_state.get("latest_facial_analysis", {"dominant_emotion": "unknown"})
 
+        # --- Fusion ---
         fused_analysis = {"text_analysis": text_analysis, "vision_analysis": facial_analysis}
         st.session_state.latest_analysis = fused_analysis
 
+        # --- Conversation ---
         st.session_state.history.append({"role": "user", "content": user_prompt})
         with st.spinner("Thinking..."):
             ai_response = conversational_model.generate_response(st.session_state.history)
