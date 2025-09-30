@@ -6,22 +6,23 @@ from datasets import load_dataset
 from transformers import (
     LongformerTokenizerFast,
     LongformerForSequenceClassification,
-    Trainer,
     TrainingArguments,
+    Trainer,
 )
 from sklearn.metrics import f1_score
+import torch.nn as nn
 
 # -------------------------------
-# 1. Load dataset + label maps
+# 1. Load dataset
 # -------------------------------
 print("🔹 Loading dataset...")
 dataset = load_dataset('json', data_files='processed_data_7labels.jsonl', split='train')
 
-TARGET_LABELS = ['joy', 'anger', 'sadness', 'fear', 'love', 'surprise', 'neutral']
-id2label = {i: l for i, l in enumerate(TARGET_LABELS)}
-label2id = {l: i for i, l in id2label.items()}
-num_labels = len(TARGET_LABELS)
+# Define label maps
+id2label = {0: "joy", 1: "anger", 2: "sadness", 3: "fear", 4: "love", 5: "surprise", 6: "neutral"}
+label2id = {v: k for k, v in id2label.items()}
 
+num_labels = len(id2label)
 print(f"✅ Labels: {id2label}")
 
 # -------------------------------
@@ -42,6 +43,7 @@ def tokenize_function(examples):
 print("🔹 Tokenizing dataset...")
 tokenized_dataset = dataset.map(tokenize_function, batched=True)
 
+# Train-test split
 train_test_split = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 train_dataset = train_test_split['train']
 eval_dataset = train_test_split['test']
@@ -50,14 +52,14 @@ eval_dataset = train_test_split['test']
 # 3. Compute Class Weights
 # -------------------------------
 print("🔹 Computing class weights...")
-label_matrix = np.array([ex["labels"] for ex in dataset])
-label_counts = label_matrix.sum(axis=0)
-print("Label counts:", dict(zip(TARGET_LABELS, label_counts)))
+all_labels = torch.tensor([ex["labels"] for ex in dataset])
+label_counts = torch.sum(all_labels, dim=0).numpy()
 
-# Avoid div by zero → add small epsilon
-total = len(dataset)
-pos_weights = (total - label_counts) / (label_counts + 1e-5)
-class_weights = torch.tensor(pos_weights, dtype=torch.float)
+total_samples = len(dataset)
+class_weights = total_samples / (len(id2label) * label_counts)
+class_weights = torch.tensor(class_weights, dtype=torch.float)
+
+print("Label counts:", {id2label[i]: label_counts[i] for i in range(num_labels)})
 print("Class weights:", class_weights)
 
 # -------------------------------
@@ -69,35 +71,26 @@ model = LongformerForSequenceClassification.from_pretrained(
     problem_type="multi_label_classification",
     num_labels=num_labels,
     id2label=id2label,
-    label2id=label2id,
+    label2id=label2id
 )
-
-# Replace default loss with weighted BCE
-def custom_loss(model, inputs, return_outputs=False):
-    labels = inputs.get("labels")
-    outputs = model(**{k: v for k, v in inputs.items() if k != "labels"})
-    logits = outputs.logits
-    loss_fct = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights.to(logits.device))
-    loss = loss_fct(logits, labels.float())
-    return (loss, outputs) if return_outputs else loss
 
 # -------------------------------
 # 5. Training Args
 # -------------------------------
 training_args = TrainingArguments(
     output_dir='./results',
-    num_train_epochs=3,              # train longer
-    per_device_train_batch_size=4,   # safe for Colab T4
+    num_train_epochs=3,              # increase for better results
+    per_device_train_batch_size=4,   # Colab T4 safe
     per_device_eval_batch_size=4,
     warmup_steps=200,
     weight_decay=0.01,
     logging_dir='./logs',
     logging_steps=50,
-    evaluation_strategy="epoch",
+    eval_strategy="epoch",     # ✅ correct argument name
     save_strategy="epoch",
     load_best_model_at_end=True,
     fp16=True,
-    save_total_limit=2,
+    save_total_limit=2
 )
 
 # -------------------------------
@@ -108,30 +101,47 @@ def compute_metrics(p):
     sigmoid = torch.nn.Sigmoid()
     probs = sigmoid(torch.Tensor(logits))
     preds = (probs > 0.5).int().numpy()
-    f1_micro = f1_score(y_true=p.label_ids, y_pred=preds, average='micro', zero_division=0)
-    f1_macro = f1_score(y_true=p.label_ids, y_pred=preds, average='macro', zero_division=0)
-    return {"f1_micro": f1_micro, "f1_macro": f1_macro}
+
+    f1 = f1_score(y_true=p.label_ids, y_pred=preds, average='micro', zero_division=0)
+    return {'f1_micro': f1}
 
 # -------------------------------
-# 7. Trainer
+# 7. Weighted Trainer
 # -------------------------------
-trainer = Trainer(
+class WeightedTrainer(Trainer):
+    def __init__(self, *args, class_weights=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights.to(self.model.device) if class_weights is not None else None
+        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=self.class_weights) if self.class_weights is not None else nn.BCEWithLogitsLoss()
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):  # ✅ accept extra kwargs
+        labels = inputs.get("labels")
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+        loss = self.loss_fn(logits, labels.float())
+        return (loss, outputs) if return_outputs else loss
+
+# -------------------------------
+# 8. Trainer
+# -------------------------------
+trainer = WeightedTrainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
     compute_metrics=compute_metrics,
-    loss_func=custom_loss,  # ✅ use weighted loss
+    class_weights=class_weights
 )
 
-print("🚀 Starting training...")
+print("🚀 Starting model training...")
 trainer.train()
 
 # -------------------------------
-# 8. Save final model
+# 9. Save final model
 # -------------------------------
-save_path = "/content/drive/MyDrive/fine-tuned-analyzer-7labels"
-print(f"💾 Saving model to {save_path}...")
-trainer.save_model(save_path)
-tokenizer.save_pretrained(save_path)
+model_save_path = "/content/fine-tuned-analyzer-7labels"
+print(f"💾 Saving the fine-tuned model to {model_save_path}...")
+trainer.save_model(model_save_path)
+tokenizer.save_pretrained(model_save_path)
+
 print("✅ Training complete!")
