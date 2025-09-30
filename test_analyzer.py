@@ -1,8 +1,8 @@
-# test_analyzer.py
+# /content/pysch/test_analyzer.py
 from text_analyzer import TextAnalyzer
 
 def main():
-    model = TextAnalyzer(model_path="./fine-tuned-analyzer-7labels")
+    model = TextAnalyzer(model_path="/content/drive/MyDrive/fine-tuned-analyzer-7labels")
 
     test_sentences = [
         "I am very happy today!",
