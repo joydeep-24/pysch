@@ -3,7 +3,7 @@ from deepface import DeepFace
 
 def analyze_facial_expression(image_np):
     """
-    Analyzes a single image frame for facial expressions.
+    Analyze a single frame for facial expressions using DeepFace.
     """
     try:
         result = DeepFace.analyze(
@@ -17,7 +17,12 @@ def analyze_facial_expression(image_np):
                 "dominant_emotion": result[0]['dominant_emotion'],
                 "emotion_scores": result[0]['emotion']
             }
-    except Exception:
-        pass # Ignore errors if no face is detected or other issues occur
-    
-    return {"dominant_emotion": "unknown"}
+        elif isinstance(result, dict):
+            return {
+                "dominant_emotion": result['dominant_emotion'],
+                "emotion_scores": result['emotion']
+            }
+    except Exception as e:
+        print(f"⚠️ DeepFace error: {e}")
+
+    return {"dominant_emotion": "unknown", "emotion_scores": {}}
