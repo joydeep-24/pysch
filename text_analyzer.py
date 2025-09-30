@@ -1,20 +1,20 @@
-# text_analyzer.py
+# /content/pysch/text_analyzer.py
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import os
 
 class TextAnalyzer:
-    def __init__(self, model_path="./fine-tuned-analyzer-7labels", threshold=0.4):
+    def __init__(self, model_path="/content/drive/MyDrive/fine-tuned-analyzer-7labels", threshold=0.4):
         """
-        Loads the fine-tuned Longformer model for 7-label classification.
+        Loads the fine-tuned Longformer model from Google Drive.
         """
         print(f"🔹 Loading Text Analyzer from {model_path}...")
         if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model not found at {model_path}. Mount Google Drive if needed.")
+            raise FileNotFoundError(f"❌ Model not found at {model_path}. Make sure Drive is mounted.")
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        self.model.eval()  # inference mode
+        self.model.eval()
         self.threshold = threshold
         print("✅ Text Analyzer loaded.")
 
