@@ -1,41 +1,39 @@
+# text_analyzer.py
 import torch
-from torch.nn.functional import sigmoid
-from transformers import LongformerTokenizer, LongformerForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import os
 
 class TextAnalyzer:
-    def __init__(self, model_name="allenai/longformer-base-4096", device="cpu"):
-        self.device = device
-        print(f"✅ Loading model: {model_name} on {device}...")
+    def __init__(self, model_path="./fine-tuned-analyzer-7labels", threshold=0.4):
+        """
+        Loads the fine-tuned Longformer model for 7-label classification.
+        """
+        print(f"🔹 Loading Text Analyzer from {model_path}...")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model not found at {model_path}. Mount Google Drive if needed.")
 
-        # Load tokenizer & model
-        self.tokenizer = LongformerTokenizer.from_pretrained(model_name)
-        self.model = LongformerForSequenceClassification.from_pretrained(model_name).to(device)
-
-        # Define your labels (adjust if you trained with different ones)
-        self.labels = ["Positive", "Negative"]
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        self.model.eval()  # inference mode
+        self.threshold = threshold
+        print("✅ Text Analyzer loaded.")
 
     def predict(self, text: str):
-        # Encode
+        """
+        Predicts emotions for a given text using dynamic thresholding.
+        """
         inputs = self.tokenizer(
-            text,
-            return_tensors="pt",
-            truncation=True,
-            padding="max_length",
-            max_length=128
-        ).to(self.device)
-
-        # Forward pass
+            text, return_tensors="pt", padding=True, truncation=True, max_length=512
+        )
         with torch.no_grad():
             logits = self.model(**inputs).logits
 
-        # Sigmoid for multilabel
-        probs = sigmoid(logits).cpu().numpy()[0]
+        probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+        results = {}
 
-        # Map labels → probabilities
-        predictions = {label: float(prob) for label, prob in zip(self.labels, probs)}
+        for i, p in enumerate(probs):
+            label = self.model.config.id2label[i]
+            if p >= self.threshold:
+                results[label] = round(float(p), 3)
 
-        # Final: choose top label
-        top_idx = probs.argmax()
-        final_label = self.labels[top_idx]
-
-        return {"all_probs": predictions, "final": {final_label: float(probs[top_idx])}}
+        return results if results else {"main_finding": "Neutral"}
