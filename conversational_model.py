@@ -1,19 +1,22 @@
-# conversational_model.py
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 class ConversationalModel:
-    def __init__(self, model_path="/content/drive/MyDrive/models/llama-3-8b-instruct"):
+    def __init__(self):
         """
-        Loads Llama 3 from Google Drive with 4-bit quantization (GPU-friendly).
+        Loads Llama 3 from the Hugging Face Hub with 4-bit quantization.
+        This will download the model on the first run of a new session.
         """
-        self.model_name = model_path
-        print(f"🔹 Loading Conversational Model from: {self.model_name}")
+        # --- THIS IS THE CORRECTED SECTION ---
+        # It now uses the Hub ID instead of a local path
+        self.model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
+        print(f"🔹 Loading Conversational Model from Hugging Face Hub: {self.model_name}")
+        # ------------------------------------
 
-        # Load tokenizer
+        # Load tokenizer from the Hub
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
-        # Load quantized model
+        # Load quantized model from the Hub
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.bfloat16,
@@ -53,6 +56,9 @@ class ConversationalModel:
 
 # Quick test
 if __name__ == "__main__":
+    # Ensure you have logged into Hugging Face in your Colab session
+    # from huggingface_hub import login; login()
+    
     llm = ConversationalModel()
     history = [
         {"role": "system", "content": "You are a caring assistant."},
