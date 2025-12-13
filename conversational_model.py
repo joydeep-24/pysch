@@ -9,7 +9,7 @@ class ConversationalModel:
         """
         # --- THIS IS THE CORRECTED SECTION ---
         # It now uses the Hub ID instead of a local path
-        self.model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
+        self.model_name = "/content/drive/MyDrive/models/llama-3-8b-instruct" 
         print(f"🔹 Loading Conversational Model from Hugging Face Hub: {self.model_name}")
         # ------------------------------------
 
@@ -65,3 +65,4 @@ if __name__ == "__main__":
         {"role": "user", "content": "I'm feeling a bit down today."},
     ]
     print("Assistant:", llm.generate_response(history))
+
